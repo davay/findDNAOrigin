@@ -66,7 +66,7 @@ func mapSkew(output []TallyType) []float32 {
 	skew := make([]float32, len(output))
 	for i := range output {
 		cPg := output[i].c + output[i].g
-		cMg := output[i].c + output[i].g
+		cMg := output[i].c - output[i].g
 
 		skew[i] = float32(cMg) / float32(cPg)
 
