@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
 	"math"
 	"sync"
+	"strings"
+	"os"
+	"bufio"
 )
 
 const NumThreads = 16
@@ -75,23 +76,28 @@ func mapSkew(output []TallyType, xCount int) []float32 {
 	return skew
 }
 
-func fixInput(input string) (string, int) {
-
-	power2 := 1
-	for i := 1; i < len(input); i *= 2 {
-		power2 = i
-	}
-	power2 *= 2
-	println(power2)
-	output := input
-	xCount := 0
-	for i := len(input); i < power2; i++ {
-		output += "X"
-		xCount++
-	}
-	return output, xCount
+func findNextPowerTwo(input int) int{
+	input--
+	input |= input >> 1
+	input |= input >> 2
+	input |= input >> 4
+	input |= input >> 8
+	input |= input >> 16
+	input++
+	return input
 }
 
+func fixInput(input string) string {
+	inputSize := len(input)
+	paddingSize := findNextPowerTwo(inputSize) - inputSize
+	println("PADDING SIZE: ", paddingSize)
+	var padding strings.Builder
+	padding.WriteString(input)
+	for i := 0; i < paddingSize; i++ {
+		padding.WriteString("X")
+	}
+	return padding.String()
+}
 func printData(input []TallyType, size int) {
 	for i := 0; i < size; i++ {
 		print(i, ": ")
@@ -118,29 +124,29 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 
 func main() {
 	var wg sync.WaitGroup
-	content, err := ioutil.ReadFile(Filename)
-	if err != nil {
-		fmt.Println("File reading error", err)
-		return
-	}
-	input, xCount := fixInput(string(content))
 
-	print(xCount)
+	file, err := os.Open("genome")
+	if err != nil {
+    		//handle error
+    		return
+	}
+	defer file.Close()
+	var input string
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+    		input += s.Text()
+	}
+	input = fixInput(input)
 	size := len(input)
 	data := make([]TallyType, size*2-1)
-	println("STARTING THREADS")
 	for i := 0; i < NumThreads; i++ {
 		wg.Add(1)
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
-	println("DONE PARSING")
 	x := TallyType{0, 0}
 	outputArr := make([]int, size)
-	println("BEFORE CALCSUM")
 	calcSum(0, 0, data, size)
-	println("AFTER CALCSUM")
-
 	calcPrefix(0, x, 0, data, outputArr, size)
 
 }
