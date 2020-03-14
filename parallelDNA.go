@@ -60,35 +60,16 @@ func fixInput(input string) string {
 	return output
 }
 
-// func printData(input []TallyType, size int) {
-// 	for i := size - 1; i < size*2-1; i++ {
-// 		print("[", input[i].c, ", ", input[i].g, "], ")
-
-// 	}
-// 	println()
-// 	print("--------------------------------------------------")
-// 	println()
-// 	for i := size - 1; i < size*2-1; i++ {
-// 		print("[ ", i, " ], ")
-// 	}
-// }
-
 func printData(input []TallyType, size int) {
 	for i := 0; i < size; i++ {
-		print("[", input[i].c, ", ", input[i].g, "], ")
+		print(i, ": ")
+		println("[", input[i].c, ",", input[i].g, "]")
 
-	}
-	println()
-	print("--------------------------------------------------")
-	println()
-	for i := 0; i < size; i++ {
-		print("[  ", i, " ], ")
 	}
 }
 
 func main() {
 	input :=
-
 		"aactctatacctcctttttgtcgaatttgtgtgatttatagagaaaatcttattaact" +
 			"gaaactaaaatggtaggtttggtggtaggttttgtgtacattttgtagtatctgatttttaattacat" +
 			"accgtatattgtattaaattgacgaacaattgcatggaattgaatatatgcaaaacaaacctaccacc" +
