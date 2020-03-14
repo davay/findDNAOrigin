@@ -111,24 +111,18 @@ func main() {
 	data := make([]TallyType, size*2-1)
 	for pos, char := range input {
 		y := TallyType{0, 0}
-		if char == 'c' {
+		if char == 'C' {
 			y.c = 1
 		}
-		if char == 'g' {
+		if char == 'G' {
 			y.g = 1
 		}
 		data[pos+size-1] = y
 	}
 
 	x := TallyType{0, 0}
-	outputArr := make([]TallyType, size)
+	outputArr := make([]int, size)
 	calcSum(0, 0, data, size)
 	calcPrefix(0, x, 0, data, outputArr, size)
-
-	skewMap := mapSkew(outputArr, xCount)
-
-	for i := range skewMap {
-		fmt.Printf("%f\n", skewMap[i])
-	}
 
 }
