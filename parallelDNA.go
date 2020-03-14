@@ -76,17 +76,35 @@ func calcSum(i int, level int, output []TallyType, size int, signal chan<- int) 
 	close(signal)
 }
 
-func calcPrefix(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int) {
-	if isLeaf(i, size) {
-		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
+func startSkew(input []TallyType, output []int, size int) {
 
-		//output[i-size+1].c = sumPrior.c + input[i].c
-		//output[i-size+1].g = sumPrior.g + input[i].g
+	sig := make(chan int)
+	x := TallyType{0, 0}
+	go calcSkew(0, x, 0, input, output, size, sig)
+	<-sig
+}
+
+func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int, signal chan<- int) {
+	if isLeaf(i, size) {
+
+		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
 	} else {
-		calcPrefix(left(i), sumPrior, level+1, input, output, size)
-		preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
-		calcPrefix(right(i), preSumPrior, level+1, input, output, size)
+		if level < ParallelLevels-1 {
+			sig := make(chan int)
+			sig2 := make(chan int)
+			go calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+			preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
+			calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
+			<-sig
+		} else {
+			sig := make(chan int)
+			sig2 := make(chan int)
+			calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+			preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
+			calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
+		}
 	}
+	close(signal)
 }
 func mapSkew(output []TallyType, xCount int) []float32 {
 	skew := make([]float32, len(output))
@@ -166,12 +184,13 @@ func main() {
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
-	x := TallyType{0, 0}
+
 	outputArr := make([]int, size)
 
 	startSum(data, size)
 	//calcSum(0, 0, data, size)
 	println("done")
-	calcPrefix(0, x, 0, data, outputArr, size)
+
+	startSkew(data, outputArr, size)
 
 }
