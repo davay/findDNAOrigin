@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"math"
-	"os"
 	"strings"
 	"sync"
 )
 
-const NumThreads = 16
+const NumThreads = 1
 const ParallelLevels = 4
 const Filename = "genome"
 
@@ -45,35 +43,38 @@ func lowestSkewPosition(skewMap []float32) int {
 	return index
 }
 func startSum(output []TallyType, size int) {
-
-	sig := make(chan int)
-	go calcSum(0, 0, output, size, sig)
-	<-sig
+	var wg sync.WaitGroup
+	wg.Add(1)
+	calcSum(0, 0, &wg, output, size)
+	wg.Wait()
 }
 
-func calcSum(i int, level int, output []TallyType, size int, signal chan<- int) {
-	//println("Starting ", i)
-
+func calcSum(i int, level int, wg *sync.WaitGroup, output []TallyType, size int) {
+	defer wg.Done()
 	if !isLeaf(i, size) {
 		if level < ParallelLevels-1 {
-			sig := make(chan int)
-			sig2 := make(chan int)
-			//var wg2 sync.WaitGroup
-			go calcSum(left(i), level+1, output, size, sig)
-			calcSum(right(i), level+1, output, size, sig2)
-			<-sig
+			var wg2 sync.WaitGroup
+			wg2.Add(1)
+			go calcSum(left(i), level+1, &wg2, output, size)
+			wg2.Wait()
 		} else {
-			sig := make(chan int)
-			sig2 := make(chan int)
-			calcSum(left(i), level+1, output, size, sig)
-			calcSum(right(i), level+1, output, size, sig2)
+			seqCalcSum(left(i), level+1, output, size)
 		}
+		seqCalcSum(right(i), level+1, output, size)
 
 		output[i].c = output[left(i)].c + output[right(i)].c
 		output[i].g = output[left(i)].g + output[right(i)].g
+
 	}
-	//println("Done with ", i)
-	close(signal)
+}
+
+func seqCalcSum(i int, level int, output []TallyType, size int) {
+	if !isLeaf(i, size) {
+		seqCalcSum(left(i), level+1, output, size)
+		seqCalcSum(right(i), level+1, output, size)
+		output[i].c = output[left(i)].c + output[right(i)].c
+		output[i].g = output[left(i)].g + output[right(i)].g
+	}
 }
 
 func startSkew(input []TallyType, output []int, size int) {
@@ -157,7 +158,10 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 		if char == 'G' {
 			y.g = 1
 		}
-		data[pos+id*size] = y
+		println("C: ", y.c)
+		println("G: ", y.g)
+
+		data[pos+id*size+size-1] = y
 	}
 
 }
@@ -165,18 +169,20 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 func main() {
 	var wg sync.WaitGroup
 
-	file, err := os.Open(Filename)
-	if err != nil {
-		//handle error
-		return
-	}
-	defer file.Close()
-	var input string
-	s := bufio.NewScanner(file)
-	for s.Scan() {
-		input += s.Text()
-	}
+	// file, err := os.Open(Filename)
+	// if err != nil {
+	// 	//handle error
+	// 	return
+	// }
+	// defer file.Close()
+	// var input string
+	// s := bufio.NewScanner(file)
+	// for s.Scan() {
+	// 	input += s.Text()
+	// }
+	input := "CCAAATTTGCGGGGG"
 	input = fixInput(input)
+	println("INPUT: ", input)
 	size := len(input)
 	data := make([]TallyType, size*2-1)
 	for i := 0; i < NumThreads; i++ {
@@ -185,12 +191,16 @@ func main() {
 	}
 	wg.Wait()
 
-	outputArr := make([]int, size)
+	println("ORIGINAL")
+	printData(data, size*2-1)
+
+	// outputArr := make([]int, size)
 
 	startSum(data, size)
-	//calcSum(0, 0, data, size)
-	println("done")
 
-	startSkew(data, outputArr, size)
+	println("AFTER SUM")
+	printData(data, size*2-1)
+
+	// startSkew(data, outputArr, size)
 
 }
