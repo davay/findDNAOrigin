@@ -2,6 +2,7 @@ package main
 
 const NumThreads = 16
 
+//asdfasfads
 type TallyType struct {
 	c int
 	g int
