@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 )
 
 const NumThreads = 16
@@ -27,6 +28,18 @@ func right(i int) int {
 
 func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
+}
+
+func lowestSkewPosition(skewMap []float32) int {
+	var min float32 = math.MaxInt64
+	index := -1
+	for i := range skewMap {
+		if skewMap[i] < min {
+			min = skewMap[i]
+			index = i
+		}
+	}
+	return index
 }
 
 func calcSum(i int, level int, output []TallyType, size int) {
