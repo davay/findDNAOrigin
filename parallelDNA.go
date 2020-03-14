@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"math"
+	"os"
 	"strings"
 	"sync"
 )
@@ -42,71 +44,55 @@ func lowestSkewPosition(skewMap []float32) int {
 	}
 	return index
 }
+
 func startSum(output []TallyType, size int) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	calcSum(0, 0, &wg, output, size)
-	wg.Wait()
-}
-
-func calcSum(i int, level int, wg *sync.WaitGroup, output []TallyType, size int) {
-	defer wg.Done()
-	if !isLeaf(i, size) {
-		if level < ParallelLevels-1 {
-			var wg2 sync.WaitGroup
-			wg2.Add(1)
-			go calcSum(left(i), level+1, &wg2, output, size)
-			wg2.Wait()
-		} else {
-			seqCalcSum(left(i), level+1, output, size)
-		}
-		seqCalcSum(right(i), level+1, output, size)
-
-		output[i].c = output[left(i)].c + output[right(i)].c
-		output[i].g = output[left(i)].g + output[right(i)].g
-
-	}
-}
-
-func seqCalcSum(i int, level int, output []TallyType, size int) {
-	if !isLeaf(i, size) {
-		seqCalcSum(left(i), level+1, output, size)
-		seqCalcSum(right(i), level+1, output, size)
-		output[i].c = output[left(i)].c + output[right(i)].c
-		output[i].g = output[left(i)].g + output[right(i)].g
-	}
-}
-
-func startSkew(input []TallyType, output []int, size int) {
-
 	sig := make(chan int)
-	x := TallyType{0, 0}
-	go calcSkew(0, x, 0, input, output, size, sig)
-	<-sig
+	calcSum(0, 0, output, size, sig)
 }
 
-func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int, signal chan<- int) {
-	if isLeaf(i, size) {
-
-		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
-	} else {
+func calcSum(i int, level int, output []TallyType, size int, signal chan<- int) {
+	sig := make(chan int)
+	sig2 := make(chan int)
+	if !isLeaf(i, size) {
 		if level < ParallelLevels-1 {
-			sig := make(chan int)
-			sig2 := make(chan int)
-			go calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
-			preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
-			calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
-			<-sig
+			go calcSum(left(i), level+1, output, size, sig)
 		} else {
-			sig := make(chan int)
-			sig2 := make(chan int)
-			calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
-			preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
-			calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
+			calcSum(left(i), level+1, output, size, sig)
 		}
+		<-sig
+		calcSum(right(i), level+1, output, size, sig2)
+		<-sig2
+		output[i].c = output[left(i)].c + output[right(i)].c
+		output[i].g = output[left(i)].g + output[right(i)].g
 	}
 	close(signal)
 }
+
+func startSkew(input []TallyType, output []int, size int) {
+	sig := make(chan int)
+	x := TallyType{0, 0}
+	calcSkew(0, x, 0, input, output, size, sig)
+}
+
+func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int, signal chan<- int) {
+	sig := make(chan int)
+	sig2 := make(chan int)
+	if isLeaf(i, size) {
+		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
+	} else {
+		if level < ParallelLevels-1 {
+			go calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+		} else {
+			calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+		}
+		<-sig
+		preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
+		calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
+		<-sig2
+	}
+	close(signal)
+}
+
 func mapSkew(output []TallyType, xCount int) []float32 {
 	skew := make([]float32, len(output))
 	for i := 0; i < len(output)-xCount; i++ {
@@ -128,7 +114,7 @@ func findNextPowerTwo(input int) int {
 	return input
 }
 
-func fixInput(input string) string {
+func fixInput(input string) (string, int) {
 	inputSize := len(input)
 	paddingSize := findNextPowerTwo(inputSize) - inputSize
 	println("PADDING SIZE: ", paddingSize)
@@ -137,7 +123,7 @@ func fixInput(input string) string {
 	for i := 0; i < paddingSize; i++ {
 		padding.WriteString("X")
 	}
-	return padding.String()
+	return padding.String(), paddingSize
 }
 func printData(input []TallyType, size int) {
 	for i := 0; i < size; i++ {
@@ -158,9 +144,6 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 		if char == 'G' {
 			y.g = 1
 		}
-		println("C: ", y.c)
-		println("G: ", y.g)
-
 		data[pos+id*size+size-1] = y
 	}
 
@@ -169,19 +152,20 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 func main() {
 	var wg sync.WaitGroup
 
-	// file, err := os.Open(Filename)
-	// if err != nil {
-	// 	//handle error
-	// 	return
-	// }
-	// defer file.Close()
-	// var input string
-	// s := bufio.NewScanner(file)
-	// for s.Scan() {
-	// 	input += s.Text()
-	// }
-	input := "CCAAATTTGCGGGGG"
-	input = fixInput(input)
+	file, err := os.Open(Filename)
+	if err != nil {
+		//handle error
+		return
+	}
+	defer file.Close()
+	var input string
+	var paddingSize int
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		input += s.Text()
+	}
+	// input := "CCAAATTTGCGGGGG"
+	input, paddingSize = fixInput(input)
 	println("INPUT: ", input)
 	size := len(input)
 	data := make([]TallyType, size*2-1)
@@ -192,15 +176,15 @@ func main() {
 	wg.Wait()
 
 	println("ORIGINAL")
-	printData(data, size*2-1)
 
-	// outputArr := make([]int, size)
+	outputArr := make([]int, size)
 
 	startSum(data, size)
-
 	println("AFTER SUM")
-	printData(data, size*2-1)
 
-	// startSkew(data, outputArr, size)
-
+	startSkew(data, outputArr, size)
+	println("AFTER SKEW")
+	for i := range outputArr[:len(outputArr)-paddingSize] {
+		println(outputArr[i])
+	}
 }
