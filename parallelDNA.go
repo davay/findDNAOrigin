@@ -52,10 +52,12 @@ func calcSum(i int, level int, output []TallyType, size int) {
 	}
 }
 
-func calcPrefix(i int, sumPrior TallyType, level int, input []TallyType, output []TallyType, size int) {
+func calcPrefix(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int) {
 	if isLeaf(i, size) {
-		output[i-size+1].c = sumPrior.c + input[i].c
-		output[i-size+1].g = sumPrior.g + input[i].g
+		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
+
+		//output[i-size+1].c = sumPrior.c + input[i].c
+		//output[i-size+1].g = sumPrior.g + input[i].g
 	} else {
 		calcPrefix(left(i), sumPrior, level+1, input, output, size)
 		preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
