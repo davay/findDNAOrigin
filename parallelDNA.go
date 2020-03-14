@@ -12,6 +12,11 @@ const NumThreads = 1
 const ParallelLevels = 4
 const Filename = "genome"
 
+type MinSkew struct {
+	index int
+	value int
+}
+
 type TallyType struct {
 	c int
 	g int
@@ -33,18 +38,19 @@ func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
 }
 
-func lowestSkewPosition(skewMap []float32) int {
-	var min float32 = math.MaxInt64
+func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS MinSkew) {
+	defer wg.Done()
+	min := math.MaxInt32
 	index := -1
-	for i := range skewMap {
+	for i := start; i > end; i++ {
 		if skewMap[i] < min {
 			min = skewMap[i]
 			index = i
 		}
 	}
-	return index
+	mS.index = index
+	mS.value = min
 }
-
 func startSum(output []TallyType, size int) {
 	sig := make(chan int)
 	calcSum(0, 0, output, size, sig)
@@ -187,4 +193,26 @@ func main() {
 	for i := range outputArr[:len(outputArr)-paddingSize] {
 		println(outputArr[i])
 	}
+
+	listIndex := make([]MinSkew, NumThreads)
+
+	for i := 0; i < NumThreads; i++ {
+		start := i * size / NumThreads
+		end := (i + 1) * size / NumThreads
+		if end > size {
+			end = size
+		}
+		wg.Add(1)
+		go lowestSkewPosition(outputArr, &wg, start, end, listIndex[i])
+	}
+	wg.Wait()
+
+	minIndex := MinSkew{-1, math.MaxInt32}
+	for i := range listIndex {
+		if listIndex[i].value < minIndex.value {
+			minIndex.value = listIndex[i].value
+			minIndex.index = listIndex[i].index
+		}
+	}
+	print(minIndex.index, minIndex.value)
 }
