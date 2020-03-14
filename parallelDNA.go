@@ -74,7 +74,7 @@ func mapSkew(output []TallyType) []float32 {
 	return skew
 
 }
-func fixInput(input string) string {
+func fixInput(input string) (string, int) {
 
 	power2 := 1
 	for i := 1; i < len(input); i *= 2 {
@@ -83,15 +83,16 @@ func fixInput(input string) string {
 	power2 *= 2
 	println(power2)
 	output := input
-
+	xCount := 0
 	for i := len(input); i < power2; i++ {
 		output += "X"
+		xCount++
 	}
-	return output
+	return output, xCount
 }
 
-func printData(input []TallyType, size int) {
-	for i := 0; i < size; i++ {
+func printData(input []TallyType, size int, xCount int) {
+	for i := 0; i < size-xCount; i++ {
 		print(i, ": ")
 		println("[", input[i].c, ",", input[i].g, "]")
 
@@ -104,7 +105,7 @@ func main() {
 		fmt.Println("File reading error", err)
 		return
 	}
-	input := fixInput(string(content))
+	input, xCount := fixInput(string(content))
 
 	size := len(input)
 	data := make([]TallyType, size*2-1)
@@ -122,13 +123,13 @@ func main() {
 	x := TallyType{0, 0}
 	outputArr := make([]TallyType, size)
 	println("BEFORE CALCSUM")
-	printData(data, size*2-1)
+	printData(data, size*2-1, xCount)
 	calcSum(0, 0, data, size)
 	println("BEFORE CALCPREFIX")
 	calcPrefix(0, x, 0, data, outputArr, size)
-	printData(data, size*2-1)
+	printData(data, size*2-1, xCount)
 	println("AFTER CALCPREFIX")
-	printData(outputArr, size)
+	printData(outputArr, size, xCount)
 
 	skewMap := mapSkew(outputArr)
 
