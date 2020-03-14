@@ -1,8 +1,9 @@
 package main
 
+import "fmt"
+
 const NumThreads = 16
 
-//asdfasfads
 type TallyType struct {
 	c int
 	g int
@@ -113,5 +114,11 @@ func main() {
 	printData(data, size*2-1)
 	println("AFTER CALCPREFIX")
 	printData(outputArr, size)
+
+	skewMap := mapSkew(outputArr)
+
+	for i := range skewMap {
+		fmt.Printf("%f\n", skewMap[i])
+	}
 
 }
