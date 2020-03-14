@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"sync"
 )
 
 const NumThreads = 16
@@ -99,17 +100,10 @@ func printData(input []TallyType, size int) {
 	}
 }
 
-func main() {
-	content, err := ioutil.ReadFile(Filename)
-	if err != nil {
-		fmt.Println("File reading error", err)
-		return
-	}
-	input, xCount := fixInput(string(content))
-
-	size := len(input)
-	data := make([]TallyType, size*2-1)
-	for pos, char := range input {
+func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size int) {
+	defer wg.Done()
+	println("STARTING THREAD: ", id, " SIZE: ", size)
+	for pos, char := range input[id*size : id*size+size] {
 		y := TallyType{0, 0}
 		if char == 'C' {
 			y.c = 1
@@ -117,12 +111,36 @@ func main() {
 		if char == 'G' {
 			y.g = 1
 		}
-		data[pos+size-1] = y
+		data[pos+id*size] = y
 	}
 
+}
+
+func main() {
+	var wg sync.WaitGroup
+	content, err := ioutil.ReadFile(Filename)
+	if err != nil {
+		fmt.Println("File reading error", err)
+		return
+	}
+	input, xCount := fixInput(string(content))
+
+	print(xCount)
+	size := len(input)
+	data := make([]TallyType, size*2-1)
+	println("STARTING THREADS")
+	for i := 0; i < NumThreads; i++ {
+		wg.Add(1)
+		go parseInput(i, &wg, input, data, size/NumThreads)
+	}
+	wg.Wait()
+	println("DONE PARSING")
 	x := TallyType{0, 0}
 	outputArr := make([]int, size)
+	println("BEFORE CALCSUM")
 	calcSum(0, 0, data, size)
+	println("AFTER CALCSUM")
+
 	calcPrefix(0, x, 0, data, outputArr, size)
 
 }
