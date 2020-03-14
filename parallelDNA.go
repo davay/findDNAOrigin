@@ -64,7 +64,7 @@ func calcPrefix(i int, sumPrior TallyType, level int, input []TallyType, output 
 }
 func mapSkew(output []TallyType, xCount int) []float32 {
 	skew := make([]float32, len(output))
-	for i = 0; i < len(output)-xCount; i++ {
+	for i := 0; i < len(output)-xCount; i++ {
 		cPg := output[i].c + output[i].g
 		cMg := output[i].c - output[i].g
 		skew[i] = float32(cMg) / float32(cPg)
@@ -129,7 +129,7 @@ func main() {
 	println("AFTER CALCPREFIX")
 	printData(outputArr, size, xCount)
 
-	skewMap := mapSkew(outputArr)
+	skewMap := mapSkew(outputArr, xCount)
 
 	for i := range skewMap {
 		fmt.Printf("%f\n", skewMap[i])
