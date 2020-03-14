@@ -1,8 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"io/ioutil"
+)
 
 const NumThreads = 16
+const Filename = "genome"
 
 type TallyType struct {
 	c int
@@ -82,14 +86,12 @@ func printData(input []TallyType, size int) {
 }
 
 func main() {
-	input :=
-		"aactctatacctcctttttgtcgaatttgtgtgatttatagagaaaatcttattaact" +
-			"gaaactaaaatggtaggtttggtggtaggttttgtgtacattttgtagtatctgatttttaattacat" +
-			"accgtatattgtattaaattgacgaacaattgcatggaattgaatatatgcaaaacaaacctaccacc" +
-			"aaactctgtattgaccattttaggacaacttcagggtggtaggtttctgaagctctcatcaatagact" +
-			"attttagtctttacaaacaatattaccgttcagattcaagattctacaacgctgttttaatgggcgtt" +
-			"gcagaaaacttaccacctaaaatccagtat"
-	input = fixInput(input)
+	content, err := ioutil.ReadFile(Filename)
+	if err != nil {
+		fmt.Println("File reading error", err)
+		return
+	}
+	input := fixInput(string(content))
 
 	size := len(input)
 	data := make([]TallyType, size*2-1)
