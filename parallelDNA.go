@@ -1,14 +1,15 @@
 package main
 
 import (
-	"math"
-	"sync"
-	"strings"
-	"os"
 	"bufio"
+	"math"
+	"os"
+	"strings"
+	"sync"
 )
 
 const NumThreads = 16
+const ParallelLevels = 4
 const Filename = "genome"
 
 type TallyType struct {
@@ -43,15 +44,36 @@ func lowestSkewPosition(skewMap []float32) int {
 	}
 	return index
 }
+func startSum(output []TallyType, size int) {
 
-func calcSum(i int, level int, output []TallyType, size int) {
+	sig := make(chan int)
+	go calcSum(0, 0, output, size, sig)
+	<-sig
+}
+
+func calcSum(i int, level int, output []TallyType, size int, signal chan<- int) {
+	//println("Starting ", i)
 
 	if !isLeaf(i, size) {
-		calcSum(left(i), level+1, output, size)
-		calcSum(right(i), level+1, output, size)
+		if level < ParallelLevels-1 {
+			sig := make(chan int)
+			sig2 := make(chan int)
+			//var wg2 sync.WaitGroup
+			go calcSum(left(i), level+1, output, size, sig)
+			calcSum(right(i), level+1, output, size, sig2)
+			<-sig
+		} else {
+			sig := make(chan int)
+			sig2 := make(chan int)
+			calcSum(left(i), level+1, output, size, sig)
+			calcSum(right(i), level+1, output, size, sig2)
+		}
+
 		output[i].c = output[left(i)].c + output[right(i)].c
 		output[i].g = output[left(i)].g + output[right(i)].g
 	}
+	//println("Done with ", i)
+	close(signal)
 }
 
 func calcPrefix(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int) {
@@ -76,7 +98,7 @@ func mapSkew(output []TallyType, xCount int) []float32 {
 	return skew
 }
 
-func findNextPowerTwo(input int) int{
+func findNextPowerTwo(input int) int {
 	input--
 	input |= input >> 1
 	input |= input >> 2
@@ -125,16 +147,16 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 func main() {
 	var wg sync.WaitGroup
 
-	file, err := os.Open("genome")
+	file, err := os.Open(Filename)
 	if err != nil {
-    		//handle error
-    		return
+		//handle error
+		return
 	}
 	defer file.Close()
 	var input string
 	s := bufio.NewScanner(file)
 	for s.Scan() {
-    		input += s.Text()
+		input += s.Text()
 	}
 	input = fixInput(input)
 	size := len(input)
@@ -146,7 +168,10 @@ func main() {
 	wg.Wait()
 	x := TallyType{0, 0}
 	outputArr := make([]int, size)
-	calcSum(0, 0, data, size)
+
+	startSum(data, size)
+	//calcSum(0, 0, data, size)
+	println("done")
 	calcPrefix(0, x, 0, data, outputArr, size)
 
 }
