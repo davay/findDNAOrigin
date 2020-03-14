@@ -91,8 +91,8 @@ func fixInput(input string) (string, int) {
 	return output, xCount
 }
 
-func printData(input []TallyType, size int, xCount int) {
-	for i := 0; i < size-xCount; i++ {
+func printData(input []TallyType, size int) {
+	for i := 0; i < size; i++ {
 		print(i, ": ")
 		println("[", input[i].c, ",", input[i].g, "]")
 
@@ -122,14 +122,8 @@ func main() {
 
 	x := TallyType{0, 0}
 	outputArr := make([]TallyType, size)
-	println("BEFORE CALCSUM")
-	printData(data, size*2-1, xCount)
 	calcSum(0, 0, data, size)
-	println("BEFORE CALCPREFIX")
 	calcPrefix(0, x, 0, data, outputArr, size)
-	printData(data, size*2-1, xCount)
-	println("AFTER CALCPREFIX")
-	printData(outputArr, size, xCount)
 
 	skewMap := mapSkew(outputArr, xCount)
 
