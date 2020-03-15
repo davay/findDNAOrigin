@@ -11,7 +11,8 @@ import (
 const NumThreads = 8
 const ParallelLevels = 4
 const Filename = "genome"
-const WindowSize = 500
+const WindowSize = 250
+const Letters = "ATGC"
 
 type MinSkew struct {
 	index int
@@ -209,22 +210,22 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 }
 
 //~~~~~~~~~~~~~// Next Algorithm
+
 func fetchMostFrequentPattern(genome string, k int, mismatches *int) []string {
-	patterns := make([]string, 1)
+	patterns := make([]string, 0)
 	pattern := getInitialPattern(k)
 	lastPattern := getLastPattern(k)
 	reversePattern := reverse(pattern)
 	patterns = append(patterns, pattern)
 	max := fetchApproximateMatchingCount(pattern, genome, mismatches)
 	max += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
-	for i := true; i != false; {
-		if pattern == lastPattern {
-			i = false
-			continue
-		}
+
+	for pattern != lastPattern {
 		pattern = nextPattern(pattern)
 		reversePattern = reverse(pattern)
 		occurredCount := fetchApproximateMatchingCount(pattern, genome, mismatches)
+		occurredCount += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
+
 		if occurredCount > max {
 			patterns = nil
 			patterns = append(patterns, pattern)
@@ -237,30 +238,22 @@ func fetchMostFrequentPattern(genome string, k int, mismatches *int) []string {
 }
 
 func nextPattern(pattern string) string {
-	var nextPattern strings.Builder
-	letters := "ATGC"
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == 'C' {
+	var nextP strings.Builder
+
+	for i := len(pattern) - 1; i >= 0; i-- {
+		if pattern[i] == Letters[len(Letters)-1] {
 			continue
 		}
-		var index int
-		if pattern[i] == 'A' {
-			index = 0
-		}
-		if pattern[i] == 'T' {
-			index = 1
-		}
-		if pattern[i] == 'G' {
-			index = 2
-		}
-		nextPattern.WriteString(pattern[0:i])
-		nextPattern.WriteString(string(letters[index]))
+		index := strings.Index(Letters, string(pattern[i])) + 1
+		nextP.WriteString(pattern[0:i])
+		nextP.WriteString(string(Letters[index]))
+
 		for j := i + 1; j < len(pattern); j++ {
-			nextPattern.WriteString("A")
+			nextP.WriteString(string(Letters[0]))
 		}
 		break
 	}
-	return nextPattern.String()
+	return nextP.String()
 }
 
 func getInitialPattern(length int) string {
@@ -281,12 +274,9 @@ func getLastPattern(length int) string {
 
 //NOTE THIS CAN BE PARALLELIZED!!!
 func fetchApproximateMatchingCount(pattern string, genome string, mismatches *int) int {
-	patternRunes := []rune(pattern)
-	genomeRunes := []rune(genome)
-
 	matchingCount := 0
-	for i := 0; i < len(genomeRunes); i++ {
-		substring := string(genomeRunes[i : i+len(patternRunes)])
+	for i := 0; i < len(genome)-len(pattern); i++ {
+		substring := genome[i : i+len(pattern)]
 		if isApproximateMatching(pattern, substring, mismatches) {
 			matchingCount++
 		}
@@ -297,32 +287,31 @@ func fetchApproximateMatchingCount(pattern string, genome string, mismatches *in
 //NOTE MISMATCHES ---> In Java does this get changed when we are r
 func isApproximateMatching(pattern string, substring string, mismatches *int) bool {
 	for i := 0; i < len(pattern); i++ {
-
-		if pattern[i] != substring[i] {
-			*mismatches--
+		if string(pattern[i]) != string(substring[i]) {
+			currMismatch := *mismatches
+			currMismatch--
+			mismatches = &currMismatch
 		}
 		if *mismatches < 0 {
 			return false
 		}
 	}
 	return true
-
 }
 
 func reverse(pattern string) string {
 	var reversed strings.Builder
-	for _, c := range pattern {
-		if c == 'A' {
+	length := len(pattern) - 1
+	for i := length; i >= 0; i-- {
+		switch string(pattern[i]) {
+		case "A":
 			reversed.WriteString("T")
-		}
-		if c == 'T' {
+		case "T":
 			reversed.WriteString("A")
-		}
-		if c == 'C' {
-			reversed.WriteString("G")
-		}
-		if c == 'G' {
+		case "G":
 			reversed.WriteString("C")
+		case "C":
+			reversed.WriteString("G")
 		}
 	}
 	return reversed.String()
@@ -337,7 +326,7 @@ func main() {
 	startSkew(data, outputArr, size)
 	minIndex := findMin(outputArr, size, paddingSize)
 	println(minIndex)
-
+	input = input[:len(input)-paddingSize]
 	window := getWindow(input, minIndex)
 	mismatches := 1
 	patterns := fetchMostFrequentPattern(window, 9, &mismatches)
