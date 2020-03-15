@@ -38,19 +38,74 @@ func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
 }
 
-func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS *MinSkew) {
-	defer wg.Done()
-	min := math.MaxInt32
-	index := -1
-	for i := start; i < end; i++ {
-		if skewMap[i] < min {
-			min = skewMap[i]
-			index = i
-		}
+func printData(input []TallyType, size int) {
+	for i := 0; i < size; i++ {
+		print(i, ": ")
+		println("[", input[i].c, ",", input[i].g, "]")
 	}
-	mS.index = index
-	mS.value = min
 }
+
+func processInput(filename string) ([]TallyType, int, int) {
+	file, err := os.Open(filename)
+	if err != nil {
+		println("Can't find ", filename)
+		os.Exit(1)
+	}
+	defer file.Close()
+	s := bufio.NewScanner(file)
+	var input string
+	var paddingSize int
+	for s.Scan() {
+		input += s.Text()
+	}
+	input, paddingSize = fixInput(input)
+	size := len(input)
+	data := make([]TallyType, size*2-1)
+	var wg sync.WaitGroup
+	for i := 0; i < NumThreads; i++ {
+		wg.Add(1)
+		go parseInput(i, &wg, input, data, size/NumThreads)
+	}
+	wg.Wait()
+	return data, size, paddingSize
+}
+
+func fixInput(input string) (string, int) {
+	inputSize := len(input)
+	paddingSize := findNextPowerTwo(inputSize) - inputSize
+	var padding strings.Builder
+	padding.WriteString(input)
+	for i := 0; i < paddingSize; i++ {
+		padding.WriteString("X")
+	}
+	return padding.String(), paddingSize
+}
+
+func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size int) {
+	defer wg.Done()
+	for pos, char := range input[id*size : id*size+size] {
+		y := TallyType{0, 0}
+		if char == 'C' {
+			y.c = 1
+		}
+		if char == 'G' {
+			y.g = 1
+		}
+		data[pos+id*size+(size*NumThreads)-1] = y
+	}
+}
+
+func findNextPowerTwo(input int) int {
+	input--
+	input |= input >> 1
+	input |= input >> 2
+	input |= input >> 4
+	input |= input >> 8
+	input |= input >> 16
+	input++
+	return input
+}
+
 func startSum(output []TallyType, size int) {
 	sig := make(chan int)
 	calcSum(0, 0, output, size, sig)
@@ -99,50 +154,18 @@ func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []
 	close(signal)
 }
 
-func findNextPowerTwo(input int) int {
-	input--
-	input |= input >> 1
-	input |= input >> 2
-	input |= input >> 4
-	input |= input >> 8
-	input |= input >> 16
-	input++
-	return input
-}
-
-func fixInput(input string) (string, int) {
-	inputSize := len(input)
-	paddingSize := findNextPowerTwo(inputSize) - inputSize
-	println("PADDING SIZE: ", paddingSize)
-	var padding strings.Builder
-	padding.WriteString(input)
-	for i := 0; i < paddingSize; i++ {
-		padding.WriteString("X")
-	}
-	return padding.String(), paddingSize
-}
-func printData(input []TallyType, size int) {
-	for i := 0; i < size; i++ {
-		print(i, ": ")
-		println("[", input[i].c, ",", input[i].g, "]")
-
-	}
-}
-
-func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size int) {
+func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS *MinSkew) {
 	defer wg.Done()
-	println("STARTING THREAD: ", id, " SIZE: ", size)
-	for pos, char := range input[id*size : id*size+size] {
-		y := TallyType{0, 0}
-		if char == 'C' {
-			y.c = 1
+	min := math.MaxInt32
+	index := -1
+	for i := start; i < end; i++ {
+		if skewMap[i] < min {
+			min = skewMap[i]
+			index = i
 		}
-		if char == 'G' {
-			y.g = 1
-		}
-		data[pos+id*size+(size*NumThreads)-1] = y
 	}
-
+	mS.index = index
+	mS.value = min
 }
 
 func findMin(outputArr []int, size int, paddingSize int) int {
@@ -160,51 +183,21 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 		go lowestSkewPosition(outputArr, &wg, start, end, &listIndex[i])
 	}
 	wg.Wait()
-
 	minIndex := MinSkew{-1, math.MaxInt32}
 	for i := range listIndex {
 		if listIndex[i].value < minIndex.value {
 			minIndex.value = listIndex[i].value
 			minIndex.index = listIndex[i].index
 		}
-		//println("LISTINDEX: ", listIndex[i].index, listIndex[i].value)
 	}
-
-	//println(minIndex.index, minIndex.value)
-
 	return minIndex.index
 }
 
 func main() {
-
-	file, err := os.Open(Filename)
-	if err != nil {
-		//handle error
-		return
-	}
-	defer file.Close()
-	var input string
-	s := bufio.NewScanner(file)
-	for s.Scan() {
-		input += s.Text()
-	}
-	var paddingSize int
-	input, paddingSize = fixInput(input)
-	size := len(input)
-	data := make([]TallyType, size*2-1)
-	var wg sync.WaitGroup
-	for i := 0; i < NumThreads; i++ {
-		wg.Add(1)
-		go parseInput(i, &wg, input, data, size/NumThreads)
-	}
-	wg.Wait()
+	data, size, paddingSize := processInput(Filename)
 	outputArr := make([]int, size)
 	startSum(data, size)
 	startSkew(data, outputArr, size)
-
-	outputArr = outputArr[:size-paddingSize]
-	size = size - paddingSize
-
 	minIndex := findMin(outputArr, size, paddingSize)
 	println(minIndex)
 }
