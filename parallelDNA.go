@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-const NumThreads = 1
+const NumThreads = 8
 const ParallelLevels = 4
 const Filename = "genome"
 
@@ -38,11 +38,11 @@ func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
 }
 
-func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS MinSkew) {
+func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS *MinSkew) {
 	defer wg.Done()
 	min := math.MaxInt32
 	index := -1
-	for i := start; i > end; i++ {
+	for i := start; i < end; i++ {
 		if skewMap[i] < min {
 			min = skewMap[i]
 			index = i
@@ -150,13 +150,12 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 		if char == 'G' {
 			y.g = 1
 		}
-		data[pos+id*size+size-1] = y
+		data[pos+id*size+(size*NumThreads)-1] = y
 	}
 
 }
 
 func main() {
-	var wg sync.WaitGroup
 
 	file, err := os.Open(Filename)
 	if err != nil {
@@ -165,54 +164,48 @@ func main() {
 	}
 	defer file.Close()
 	var input string
-	var paddingSize int
 	s := bufio.NewScanner(file)
 	for s.Scan() {
 		input += s.Text()
 	}
-	// input := "CCAAATTTGCGGGGG"
+	var paddingSize int
 	input, paddingSize = fixInput(input)
-	println("INPUT: ", input)
 	size := len(input)
 	data := make([]TallyType, size*2-1)
+	var wg sync.WaitGroup
 	for i := 0; i < NumThreads; i++ {
 		wg.Add(1)
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
-
-	println("ORIGINAL")
-
 	outputArr := make([]int, size)
-
 	startSum(data, size)
-	println("AFTER SUM")
-
 	startSkew(data, outputArr, size)
-	println("AFTER SKEW")
-	for i := range outputArr[:len(outputArr)-paddingSize] {
-		println(outputArr[i])
-	}
-
+	outputArr = outputArr[:size-paddingSize]
+	size = size - paddingSize
 	listIndex := make([]MinSkew, NumThreads)
 
 	for i := 0; i < NumThreads; i++ {
 		start := i * size / NumThreads
-		end := (i + 1) * size / NumThreads
+		end := ((i + 1) * size) / NumThreads
 		if end > size {
 			end = size
 		}
 		wg.Add(1)
-		go lowestSkewPosition(outputArr, &wg, start, end, listIndex[i])
+		go lowestSkewPosition(outputArr, &wg, start, end, &listIndex[i])
+
 	}
 	wg.Wait()
-
+	for i := range listIndex {
+		println(listIndex[i].index, listIndex[i].value)
+	}
 	minIndex := MinSkew{-1, math.MaxInt32}
 	for i := range listIndex {
 		if listIndex[i].value < minIndex.value {
 			minIndex.value = listIndex[i].value
 			minIndex.index = listIndex[i].index
 		}
+		println("LISTINDEX: ", listIndex[i].index, listIndex[i].value)
 	}
-	print(minIndex.index, minIndex.value)
+	println(minIndex.index, minIndex.value)
 }
