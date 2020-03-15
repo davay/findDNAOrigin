@@ -193,6 +193,126 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 	return minIndex.index
 }
 
+//~~~~~~~~~~~~~// Next Algorithm
+func fetchMostFrequentPattern(genome string, k int, mismatches *int) []string {
+	patterns := make([]string, 1)
+	pattern := getInitialPattern(k)
+	lastPattern := getLastPattern(k)
+	reversePattern := reverse(pattern)
+	patterns = append(patterns, pattern)
+	max := fetchApproximateMatchingCount(pattern, genome, mismatches)
+	max += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
+	for i := true; i != false; {
+		if pattern == lastPattern {
+			i = false
+			continue
+		}
+		pattern = nextPattern(pattern)
+		reversePattern = reverse(pattern)
+		occurredCount := fetchApproximateMatchingCount(pattern, genome, mismatches)
+		if occurredCount > max {
+			patterns = nil
+			patterns = append(patterns, pattern)
+			max = occurredCount
+		} else if occurredCount == max {
+			patterns = append(patterns, pattern)
+		}
+	}
+	return patterns
+}
+
+func nextPattern(pattern string) string {
+	var nextPattern strings.Builder
+	letters := "ATGC"
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == 'C' {
+			continue
+		}
+		var index int
+		if pattern[i] == 'A' {
+			index = 0
+		}
+		if pattern[i] == 'T' {
+			index = 1
+		}
+		if pattern[i] == 'G' {
+			index = 2
+		}
+		nextPattern.WriteString(pattern[0:i])
+		nextPattern.WriteString(string(letters[index]))
+		for j := i + 1; j < len(pattern); j++ {
+			nextPattern.WriteString("A")
+		}
+		break
+	}
+	return nextPattern.String()
+}
+
+func getInitialPattern(length int) string {
+	var firstPattern strings.Builder
+	for i := 0; i < length; i++ {
+		firstPattern.WriteString("A")
+	}
+	return firstPattern.String()
+}
+
+func getLastPattern(length int) string {
+	var lastPattern strings.Builder
+	for i := 0; i < length; i++ {
+		lastPattern.WriteString("C")
+	}
+	return lastPattern.String()
+}
+
+//NOTE THIS CAN BE PARALLELIZED!!!
+func fetchApproximateMatchingCount(pattern string, genome string, mismatches *int) int {
+	patternRunes := []rune(pattern)
+	genomeRunes := []rune(genome)
+
+	matchingCount := 0
+	for i := 0; i < len(genomeRunes); i++ {
+		substring := string(genomeRunes[i : i+len(patternRunes)])
+		if isApproximateMatching(pattern, substring, mismatches) {
+			matchingCount++
+		}
+	}
+	return matchingCount
+}
+
+//NOTE MISMATCHES ---> In Java does this get changed when we are r
+func isApproximateMatching(pattern string, substring string, mismatches *int) bool {
+	for i := 0; i < len(pattern); i++ {
+
+		if pattern[i] != substring[i] {
+			*mismatches--
+		}
+		if *mismatches < 0 {
+			return false
+		}
+	}
+	return true
+
+}
+
+func reverse(pattern string) string {
+	var reversed strings.Builder
+	for _, c := range pattern {
+		if c == 'A' {
+			reversed.WriteString("T")
+		}
+		if c == 'T' {
+			reversed.WriteString("A")
+		}
+		if c == 'C' {
+			reversed.WriteString("G")
+		}
+		if c == 'G' {
+			reversed.WriteString("C")
+		}
+	}
+	return reversed.String()
+}
+
 func main() {
 	data, size, paddingSize := processInput(Filename)
 	outputArr := make([]int, size)
