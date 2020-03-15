@@ -11,7 +11,7 @@ import (
 const NumThreads = 8
 const ParallelLevels = 4
 const Filename = "genome"
-const WindowSize = 250
+const WindowSize = 400
 const Letters = "ATGC"
 
 type MinSkew struct {
@@ -211,12 +211,18 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 
 //~~~~~~~~~~~~~// Next Algorithm
 
-func fetchMostFrequentPattern(genome string, k int, mismatches *int) []string {
-	patterns := make([]string, 0)
+type freqPattern struct {
+	count   int
+	pattern string
+}
+
+func fetchMostFrequentPattern(genome string, k int, mismatches *int) []freqPattern {
+	patterns := make([]freqPattern, 0)
 	pattern := getInitialPattern(k)
 	lastPattern := getLastPattern(k)
 	reversePattern := reverse(pattern)
-	patterns = append(patterns, pattern)
+	x := freqPattern{0, pattern}
+	patterns = append(patterns, x)
 	max := fetchApproximateMatchingCount(pattern, genome, mismatches)
 	max += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
 
@@ -225,14 +231,19 @@ func fetchMostFrequentPattern(genome string, k int, mismatches *int) []string {
 		reversePattern = reverse(pattern)
 		occurredCount := fetchApproximateMatchingCount(pattern, genome, mismatches)
 		occurredCount += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
-
-		if occurredCount > max {
-			patterns = nil
-			patterns = append(patterns, pattern)
-			max = occurredCount
-		} else if occurredCount == max {
-			patterns = append(patterns, pattern)
+		if occurredCount == 2 {
+			y := freqPattern{occurredCount, pattern}
+			patterns = append(patterns, y)
 		}
+		//if occurredCount > max {
+		//	//patterns = nil
+		//	y := freqPattern{occurredCount, pattern}
+		//	patterns = append(patterns, y)
+		//	max = occurredCount
+		//} else if occurredCount == max {
+		//	y := freqPattern{occurredCount, pattern}
+		//	patterns = append(patterns, y)
+		//}
 	}
 	return patterns
 }
@@ -331,6 +342,6 @@ func main() {
 	mismatches := 1
 	patterns := fetchMostFrequentPattern(window, 9, &mismatches)
 	for i := range patterns {
-		println(patterns[i])
+		println(patterns[i].pattern, ": ", patterns[i].count)
 	}
 }
