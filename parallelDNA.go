@@ -11,6 +11,7 @@ import (
 const NumThreads = 8
 const ParallelLevels = 4
 const Filename = "genome"
+const WindowSize = 500
 
 type MinSkew struct {
 	index int
@@ -45,7 +46,7 @@ func printData(input []TallyType, size int) {
 	}
 }
 
-func processInput(filename string) ([]TallyType, int, int) {
+func getInput(filename string) (string, int) {
 	file, err := os.Open(filename)
 	if err != nil {
 		println("Can't find ", filename)
@@ -54,11 +55,13 @@ func processInput(filename string) ([]TallyType, int, int) {
 	defer file.Close()
 	s := bufio.NewScanner(file)
 	var input string
-	var paddingSize int
 	for s.Scan() {
 		input += s.Text()
 	}
-	input, paddingSize = fixInput(input)
+	return fixInput(input)
+}
+
+func processInput(input string) []TallyType {
 	size := len(input)
 	data := make([]TallyType, size*2-1)
 	var wg sync.WaitGroup
@@ -67,7 +70,7 @@ func processInput(filename string) ([]TallyType, int, int) {
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
-	return data, size, paddingSize
+	return data
 }
 
 func fixInput(input string) (string, int) {
@@ -93,6 +96,18 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 		}
 		data[pos+id*size+(size*NumThreads)-1] = y
 	}
+}
+
+func getWindow(input string, index int) string {
+	start := 0
+	end := len(input)
+	if index-WindowSize > -1 {
+		start = index - WindowSize
+	}
+	if index+WindowSize < len(input) {
+		end = index + WindowSize
+	}
+	return input[start:end]
 }
 
 func findNextPowerTwo(input int) int {
@@ -314,10 +329,19 @@ func reverse(pattern string) string {
 }
 
 func main() {
-	data, size, paddingSize := processInput(Filename)
+	input, paddingSize := getInput(Filename)
+	data := processInput(input)
+	size := len(input)
 	outputArr := make([]int, size)
 	startSum(data, size)
 	startSkew(data, outputArr, size)
 	minIndex := findMin(outputArr, size, paddingSize)
 	println(minIndex)
+
+	window := getWindow(input, minIndex)
+	mismatches := 1
+	patterns := fetchMostFrequentPattern(window, 9, &mismatches)
+	for i := range patterns {
+		println(patterns[i])
+	}
 }
