@@ -99,16 +99,6 @@ func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []
 	close(signal)
 }
 
-func mapSkew(output []TallyType, xCount int) []float32 {
-	skew := make([]float32, len(output))
-	for i := 0; i < len(output)-xCount; i++ {
-		cPg := output[i].c + output[i].g
-		cMg := output[i].c - output[i].g
-		skew[i] = float32(cMg) / float32(cPg)
-	}
-	return skew
-}
-
 func findNextPowerTwo(input int) int {
 	input--
 	input |= input >> 1
@@ -155,6 +145,36 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 
 }
 
+func findMin(outputArr []int, size int, paddingSize int) int {
+	var wg sync.WaitGroup
+	outputArr = outputArr[:size-paddingSize]
+	size = size - paddingSize
+	listIndex := make([]MinSkew, NumThreads)
+	for i := 0; i < NumThreads; i++ {
+		start := i * size / NumThreads
+		end := ((i + 1) * size) / NumThreads
+		if end > size {
+			end = size
+		}
+		wg.Add(1)
+		go lowestSkewPosition(outputArr, &wg, start, end, &listIndex[i])
+	}
+	wg.Wait()
+
+	minIndex := MinSkew{-1, math.MaxInt32}
+	for i := range listIndex {
+		if listIndex[i].value < minIndex.value {
+			minIndex.value = listIndex[i].value
+			minIndex.index = listIndex[i].index
+		}
+		//println("LISTINDEX: ", listIndex[i].index, listIndex[i].value)
+	}
+
+	//println(minIndex.index, minIndex.value)
+
+	return minIndex.index
+}
+
 func main() {
 
 	file, err := os.Open(Filename)
@@ -181,31 +201,10 @@ func main() {
 	outputArr := make([]int, size)
 	startSum(data, size)
 	startSkew(data, outputArr, size)
+
 	outputArr = outputArr[:size-paddingSize]
 	size = size - paddingSize
-	listIndex := make([]MinSkew, NumThreads)
 
-	for i := 0; i < NumThreads; i++ {
-		start := i * size / NumThreads
-		end := ((i + 1) * size) / NumThreads
-		if end > size {
-			end = size
-		}
-		wg.Add(1)
-		go lowestSkewPosition(outputArr, &wg, start, end, &listIndex[i])
-
-	}
-	wg.Wait()
-	for i := range listIndex {
-		println(listIndex[i].index, listIndex[i].value)
-	}
-	minIndex := MinSkew{-1, math.MaxInt32}
-	for i := range listIndex {
-		if listIndex[i].value < minIndex.value {
-			minIndex.value = listIndex[i].value
-			minIndex.index = listIndex[i].index
-		}
-		println("LISTINDEX: ", listIndex[i].index, listIndex[i].value)
-	}
-	println(minIndex.index, minIndex.value)
+	minIndex := findMin(outputArr, size, paddingSize)
+	println(minIndex)
 }
