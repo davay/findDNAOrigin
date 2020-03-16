@@ -1,5 +1,5 @@
 # Description
-This program takes in a Archaean genome in a FASTA format and processes it to find likely locations for the dnaA box/origin.
+This program takes in a Archaean genome in a FASTA format and processes it to find likely locations for the dnaA box/origin of replication.
 
 We do this by first cutting down on our search space by calculating the prefix skew (Total Cytosine so far minus Total Guanine so far). This is done via a recursive, paralellized scan & reduction.
 
