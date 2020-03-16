@@ -29,7 +29,6 @@ import (
 )
 
 const NumThreads = 8
-const HalfNumThreads = NumThreads / 2
 const ParallelLevels = 3
 const WindowSize = 400
 const KMerLength = 9
@@ -307,13 +306,13 @@ func searchWindow(window string, pattern string, revPattern string) int {
 	createNeighbors(pattern, &neighbors)
 	count := 0
 	var wg sync.WaitGroup
-	result := make([]int, HalfNumThreads*2)
+	result := make([]int, NumThreads)
 	revNeighbors := make([]string, 0)
 	createNeighbors(revPattern, &revNeighbors)
 
-	for i := 0; i < HalfNumThreads; i++ {
-		start := i * len(neighbors) / HalfNumThreads
-		end := (i + 1) * len(neighbors) / HalfNumThreads
+	for i := 0; i < int(math.Ceil(NumThreads/2)); i++ {
+		start := i * len(neighbors) / int(math.Ceil(NumThreads/2))
+		end := (i + 1) * len(neighbors) /  int(math.Ceil(NumThreads/2))
 		if end > len(neighbors) {
 			end = len(neighbors)
 		}
