@@ -32,6 +32,10 @@ go build
 ```sh
 ./findDNAOrigin FILENAME
 ```
+OR
+```sh
+go run findDNAOrigin.go FILENAME
+```
 
 ### Getting other genome file (FASTA format only)
 
