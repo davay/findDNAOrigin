@@ -7,6 +7,7 @@ import (
 	_ "regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 const NumThreads = 8
@@ -15,6 +16,10 @@ const Filename = "genome"
 const WindowSize = 500
 const Letters = "ATGC"
 
+type CandidateString struct {
+	sequence string
+	count    int
+}
 type MinSkew struct {
 	index int
 	value int
@@ -49,6 +54,7 @@ func printData(input []TallyType, size int) {
 }
 
 func getInput(filename string) (string, int) {
+	start := time.Now()
 	file, err := os.Open(filename)
 	if err != nil {
 		println("Can't find ", filename)
@@ -60,10 +66,13 @@ func getInput(filename string) (string, int) {
 	for s.Scan() {
 		input += s.Text()
 	}
+	elapsed := time.Now().Sub(start)
+	println("getInput took: ", elapsed.Milliseconds())
 	return fixInput(input)
 }
 
 func processInput(input string) []TallyType {
+	start := time.Now()
 	size := len(input)
 	data := make([]TallyType, size*2-1)
 	var wg sync.WaitGroup
@@ -72,10 +81,13 @@ func processInput(input string) []TallyType {
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
+	elapsed := time.Now().Sub(start)
+	println("processInput took: ", elapsed.Milliseconds())
 	return data
 }
 
 func fixInput(input string) (string, int) {
+	start := time.Now()
 	inputSize := len(input)
 	paddingSize := findNextPowerTwo(inputSize) - inputSize
 	var padding strings.Builder
@@ -83,6 +95,8 @@ func fixInput(input string) (string, int) {
 	for i := 0; i < paddingSize; i++ {
 		padding.WriteString("X")
 	}
+	elapsed := time.Since(start)
+	println("fixInput took: ", elapsed.Milliseconds())
 	return padding.String(), paddingSize
 }
 
@@ -210,108 +224,6 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 	return minIndex.index
 }
 
-//~~~~~~~~~~~~~// Next Algorithm
-
-type freqPattern struct {
-	count   int
-	pattern string
-}
-
-func fetchMostFrequentPattern(genome string, k int, mismatches *int) []freqPattern {
-	patterns := make([]freqPattern, 0)
-	pattern := getInitialPattern(k)
-	lastPattern := getLastPattern(k)
-	reversePattern := reverse(pattern)
-	x := freqPattern{0, pattern}
-	patterns = append(patterns, x)
-	max := fetchApproximateMatchingCount(pattern, genome, mismatches)
-	max += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
-
-	for pattern != lastPattern {
-		pattern = nextPattern(pattern)
-		reversePattern = reverse(pattern)
-
-		occurredCount := fetchApproximateMatchingCount(pattern, genome, mismatches)
-		occurredCount += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
-		if occurredCount == 2 {
-			y := freqPattern{occurredCount, pattern}
-			patterns = append(patterns, y)
-		}
-		//if occurredCount > max {
-		//	//patterns = nil
-		//	y := freqPattern{occurredCount, pattern}
-		//	patterns = append(patterns, y)
-		//	max = occurredCount
-		//} else if occurredCount == max {
-		//	y := freqPattern{occurredCount, pattern}
-		//	patterns = append(patterns, y)
-		//}
-	}
-	return patterns
-}
-
-func nextPattern(pattern string) string {
-	var nextP strings.Builder
-
-	for i := len(pattern) - 1; i >= 0; i-- {
-		if pattern[i] == Letters[len(Letters)-1] {
-			continue
-		}
-		index := strings.Index(Letters, string(pattern[i])) + 1
-		nextP.WriteString(pattern[0:i])
-		nextP.WriteString(string(Letters[index]))
-
-		for j := i + 1; j < len(pattern); j++ {
-			nextP.WriteString(string(Letters[0]))
-		}
-		break
-	}
-	return nextP.String()
-}
-
-func getInitialPattern(length int) string {
-	var firstPattern strings.Builder
-	for i := 0; i < length; i++ {
-		firstPattern.WriteString("A")
-	}
-	return firstPattern.String()
-}
-
-func getLastPattern(length int) string {
-	var lastPattern strings.Builder
-	for i := 0; i < length; i++ {
-		lastPattern.WriteString("C")
-	}
-	return lastPattern.String()
-}
-
-//NOTE THIS CAN BE PARALLELIZED!!!
-func fetchApproximateMatchingCount(pattern string, genome string, mismatches *int) int {
-	matchingCount := 0
-	for i := 0; i < len(genome)-len(pattern); i++ {
-		substring := genome[i : i+len(pattern)]
-		if isApproximateMatching(pattern, substring, mismatches) {
-			matchingCount++
-		}
-	}
-	return matchingCount
-}
-
-//NOTE MISMATCHES ---> In Java does this get changed when we are r
-func isApproximateMatching(pattern string, substring string, mismatches *int) bool {
-	for i := 0; i < len(pattern); i++ {
-		if string(pattern[i]) != string(substring[i]) {
-			currMismatch := *mismatches
-			currMismatch--
-			mismatches = &currMismatch
-		}
-		if *mismatches < 0 {
-			return false
-		}
-	}
-	return true
-}
-
 func reverse(pattern string) string {
 	var reversed strings.Builder
 	length := len(pattern) - 1
@@ -330,32 +242,9 @@ func reverse(pattern string) string {
 	return reversed.String()
 }
 
-func main() {
-	input, paddingSize := getInput(Filename)
-	//data := processInput(input)
-	//size := len(input)
-	//outputArr := make([]int, size)
-	//startSum(data, size)
-	//startSkew(data, outputArr, size)
-	//minIndex := findMin(outputArr, size, paddingSize)
-	//println(minIndex)
-	input = input[:len(input)-paddingSize]
-	//window := getWindow(input, minIndex)
-	window := getWindow(input, 3925596)
-	findFreqKLengthPatterns(window, 9)
-
-	//mismatches := 1
-	//patterns := fetchMostFrequentPattern(window, 9, &mismatches)
-	//for i := range patterns {
-	//	println(patterns[i].pattern, ": ", patterns[i].count)
-	//}
-}
-
 func getAllKLength(set string, prefix string, k int, combos *[]string) {
-
 	if k == 0 {
 		*combos = append(*combos, prefix)
-		//println(combos[0], combos[1])
 		return
 	}
 	for i := range set {
@@ -366,40 +255,54 @@ func getAllKLength(set string, prefix string, k int, combos *[]string) {
 	}
 }
 
-func searchWindow(window string, pattern string, revPattern string) int {
-	mismatches := make([]string, 0)
-	//mismatches = append(mismatches, pattern)
-	createMismatches(pattern, &mismatches)
-	count := 0
-	for i := range mismatches {
-		x := strings.Count(window, mismatches[i])
+func searchWindowSpecific(window string, patterns []string, count *int, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-		count = count + x
+	for i := range patterns {
+		*count = *count + strings.Count(window, patterns[i])
 	}
-	revMismatches := make([]string, 0)
-	createMismatches(revPattern, &revMismatches)
-	for i := range revMismatches {
-		x := strings.Count(window, revMismatches[i])
-		count = count + x
+}
+
+func searchWindow(window string, pattern string, revPattern string) int {
+	neighbors := make([]string, 0)
+	createNeighbors(pattern, &neighbors)
+	count := 0
+	var wg sync.WaitGroup
+	result := make([]int, NumThreads*2)
+	revNeighbors := make([]string, 0)
+	createNeighbors(revPattern, &revNeighbors)
+
+	for i := 0; i < NumThreads; i++ {
+		start := i * len(neighbors) / NumThreads
+		end := (i + 1) * len(neighbors) / NumThreads
+		if end > len(neighbors) {
+			end = len(neighbors)
+		}
+		wg.Add(2)
+		go searchWindowSpecific(window, neighbors[start:end], &result[i], &wg)
+		go searchWindowSpecific(window, revNeighbors[start:end], &result[i+1], &wg)
 	}
-	//println("Pattern: ", pattern,"Count: ", count)
+	wg.Wait()
+
+	for i := range result {
+		count += result[i]
+	}
+
 	return count
 }
 
 func findFreqKLengthPatterns(window string, k int) {
 	combos := make([]string, 0)
 	getAllKLength("ATGC", "", k, &combos)
+	countFreq := make(map[string]int, len(combos))
 
-	countFreq := make(map[string]int)
-
+	//initialize k-v pairs with 0 values
 	for i := range combos {
 		countFreq[combos[i]] = 0
 	}
 
-	//Dictionary initialized with all counts @ 0 ...
 	for i := range countFreq {
 		if countFreq[i] == 0 {
-
 			//DON"T SEARCH FOR REVERSE LATER
 			reversePattern := reverse(i)
 			count := searchWindow(window, i, reversePattern)
@@ -409,75 +312,50 @@ func findFreqKLengthPatterns(window string, k int) {
 	}
 
 	max := 0
-
-	candidates := make([]candidateString, 0)
+	candidates := make([]CandidateString, 0)
 
 	for k, v := range countFreq {
 		if v > max {
 			candidates = nil
 			max = v
-			candidates = append(candidates, candidateString{k, v})
+			candidates = append(candidates, CandidateString{k, v})
 		} else if v == max {
-			candidates = append(candidates, candidateString{k, v})
+			candidates = append(candidates, CandidateString{k, v})
 		}
-
 	}
+
+	//FIXME move print statement
 	for i := range candidates {
 		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
 	}
-
 }
 
-type candidateString struct {
-	sequence string
-	count    int
-}
-
-func createMismatches(pattern string, mismatches *[]string) {
+func createNeighbors(pattern string, neighbors *[]string) {
 	for i := range pattern {
-		var mm strings.Builder
-		if i == 0 {
-			mm.WriteString("A" + pattern[1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString("T" + pattern[1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString("G" + pattern[1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString("C" + pattern[1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-		}
-		if i == len(pattern)-1 {
-			mm.WriteString(pattern[0:i] + "A")
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "T")
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "G")
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "C")
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-		}
-		if i != 0 && i != len(pattern)-1 {
-			mm.WriteString(pattern[0:i] + "A" + pattern[i+1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "T" + pattern[i+1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "G" + pattern[i+1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
-			mm.WriteString(pattern[0:i] + "C" + pattern[i+1:])
-			*mismatches = append(*mismatches, mm.String())
-			mm.Reset()
+		for j := range Letters {
+			if i == 0 {
+				*neighbors = append(*neighbors, string(Letters[j])+pattern[1:])
+			}
+			if i == len(pattern)-1 {
+				*neighbors = append(*neighbors, pattern[0:i]+string(Letters[j]))
+			}
+			if i != 0 && i != len(pattern)-1 {
+				*neighbors = append(*neighbors, pattern[0:i]+string(Letters[j])+pattern[i+1:])
+			}
 		}
 	}
+}
 
+func main() {
+	input, paddingSize := getInput(Filename)
+	data := processInput(input)
+	size := len(input)
+	outputArr := make([]int, size)
+	startSum(data, size)
+	startSkew(data, outputArr, size)
+	minIndex := findMin(outputArr, size, paddingSize)
+	println(minIndex)
+	input = input[:len(input)-paddingSize]
+	window := getWindow(input, minIndex)
+	findFreqKLengthPatterns(window, 9)
 }
