@@ -1,0 +1,15 @@
+Final Project Rubric ... DNA Origin Finder
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+||Package Runs: Easy to follow instructions for running the project                              || 25%  ||
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||~~~~~~||
+||Prefix Skew portion: Good implementation. Uses Ladner-Fischer approach. Allows for             || 25%  ||
+||goroutines to be "forked" off								                                     ||      ||
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||~~~~~~||
+||Origin Candidates portion: Good implementation. Implements task parallelism to complete        || 25%  ||
+||the searching more efficiently. 							                                     ||      ||
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||~~~~~~||
+||Style: Good code. Beautiful to read and suitable to show off to your friends.                  || 5%   ||
+||No memory leaks, good comments, etc.                                                           ||      ||
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||~~~~~~||
+||Speedup:      								                                                 || 10%  ||
+||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
