@@ -13,7 +13,7 @@ import (
 const NumThreads = 1
 const ParallelLevels = 1
 const Filename = "genome"
-const WindowSize = 500
+const WindowSize = 400
 const Letters = "ATGC"
 
 type CandidateString struct {
@@ -138,51 +138,74 @@ func findNextPowerTwo(input int) int {
 }
 
 func startSum(output []TallyType, size int) {
-	sig := make(chan int)
-	calcSum(0, 0, output, size, sig)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	calcSum(0, 0, &wg, output, size)
+	wg.Wait()
 }
 
-func calcSum(i int, level int, output []TallyType, size int, signal chan<- int) {
-	sig := make(chan int)
-	sig2 := make(chan int)
+func calcSum(i int, level int, wg *sync.WaitGroup, output []TallyType, size int) {
+	defer wg.Done()
+
 	if !isLeaf(i, size) {
 		if level < ParallelLevels-1 {
-			go calcSum(left(i), level+1, output, size, sig)
+			var wg2 sync.WaitGroup
+			wg2.Add(1)
+			go calcSum(left(i), level+1, &wg2, output, size)
+			wg2.Wait()
 		} else {
-			calcSum(left(i), level+1, output, size, sig)
+			seqCalcSum(left(i), level+1, output, size)
 		}
-		<-sig
-		calcSum(right(i), level+1, output, size, sig2)
-		<-sig2
+		seqCalcSum(right(i), level+1, output, size)
+
 		output[i].c = output[left(i)].c + output[right(i)].c
 		output[i].g = output[left(i)].g + output[right(i)].g
 	}
-	close(signal)
+}
+
+func seqCalcSum(i int, level int, output []TallyType, size int) {
+	if !isLeaf(i, size) {
+		seqCalcSum(left(i), level+1, output, size)
+		seqCalcSum(right(i), level+1, output, size)
+		output[i].c = output[left(i)].c + output[right(i)].c
+		output[i].g = output[left(i)].g + output[right(i)].g
+	}
 }
 
 func startSkew(input []TallyType, output []int, size int) {
-	sig := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	x := TallyType{0, 0}
-	calcSkew(0, x, 0, input, output, size, sig)
+	calcSkew(0, x, 0, &wg, input, output, size)
+	wg.Wait()
 }
 
-func calcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int, signal chan<- int) {
-	sig := make(chan int)
-	sig2 := make(chan int)
+func calcSkew(i int, sumPrior TallyType, level int, wg *sync.WaitGroup, input []TallyType, output []int, size int) {
+	defer wg.Done()
 	if isLeaf(i, size) {
 		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
 	} else {
 		if level < ParallelLevels-1 {
-			go calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+			var wg2 sync.WaitGroup
+			wg2.Add(1)
+			go calcSkew(left(i), sumPrior, level+1, &wg2, input, output, size)
+			wg2.Wait()
 		} else {
-			calcSkew(left(i), sumPrior, level+1, input, output, size, sig)
+			seqCalcSkew(left(i), sumPrior, level+1, input, output, size)
 		}
-		<-sig
 		preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
-		calcSkew(right(i), preSumPrior, level+1, input, output, size, sig2)
-		<-sig2
+		seqCalcSkew(right(i), preSumPrior, level+1, input, output, size)
 	}
-	close(signal)
+}
+
+func seqCalcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int) {
+	if isLeaf(i, size) {
+		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
+	} else {
+		seqCalcSkew(left(i), sumPrior, level+1, input, output, size)
+		preSumPrior := TallyType{sumPrior.c + input[left(i)].c, sumPrior.g + input[left(i)].g}
+		seqCalcSkew(right(i), preSumPrior, level+1, input, output, size)
+	}
 }
 
 func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS *MinSkew) {
@@ -291,29 +314,34 @@ func searchWindow(window string, pattern string, revPattern string) int {
 	return count
 }
 
-func findFreqKLengthPatterns(window string, k int) {
-	combos := make([]string, 0)
-	getAllKLength("ATGC", "", k, &combos)
-	countFreq := make(map[string]int, len(combos))
+func getLastPattern(length int) string {
+	var lastPattern strings.Builder
+	halfway := int(math.Floor(float64(length) / float64(2)))
 
-	//initialize k-v pairs with 0 values
-	for i := range combos {
-		countFreq[combos[i]] = 0
-	}
-
-	for i := range countFreq {
-		if countFreq[i] == 0 {
-			//DON"T SEARCH FOR REVERSE LATER
-			reversePattern := reverse(i)
-			count := searchWindow(window, i, reversePattern)
-			countFreq[i] = count
-			countFreq[reversePattern] = count
+	for i := 0; i < length; i++ {
+		if halfway > i {
+			lastPattern.WriteString("T")
+		} else {
+			lastPattern.WriteString("C")
 		}
 	}
+	return lastPattern.String()
+}
 
+func findFreqKLengthPatterns(window string, k int) {
+	lastPattern := getLastPattern(k)
+	pattern := getInitialPattern(9)
+	countFreq := make(map[string]int, 0)
+	for pattern != lastPattern {
+		//DON"T SEARCH FOR REVERSE LATER
+		reversePattern := reverse(pattern)
+		count := searchWindow(window, pattern, reversePattern)
+		countFreq[pattern] = count
+		countFreq[reversePattern] = count
+		pattern = nextPattern(pattern)
+	}
 	max := 0
 	candidates := make([]CandidateString, 0)
-
 	for k, v := range countFreq {
 		if v > max {
 			candidates = nil
@@ -323,11 +351,37 @@ func findFreqKLengthPatterns(window string, k int) {
 			candidates = append(candidates, CandidateString{k, v})
 		}
 	}
-
 	//FIXME move print statement
 	for i := range candidates {
 		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
 	}
+}
+
+func getInitialPattern(length int) string {
+	var firstPattern strings.Builder
+	for i := 0; i < length; i++ {
+		firstPattern.WriteString("A")
+	}
+	return firstPattern.String()
+}
+
+func nextPattern(pattern string) string {
+	var nextP strings.Builder
+
+	for i := len(pattern) - 1; i >= 0; i-- {
+		if pattern[i] == Letters[len(Letters)-1] {
+			continue
+		}
+		index := strings.Index(Letters, string(pattern[i])) + 1
+		nextP.WriteString(pattern[0:i])
+		nextP.WriteString(string(Letters[index]))
+
+		for j := i + 1; j < len(pattern); j++ {
+			nextP.WriteString(string(Letters[0]))
+		}
+		break
+	}
+	return nextP.String()
 }
 
 func createNeighbors(pattern string, neighbors *[]string) {
@@ -378,12 +432,16 @@ func main() {
 
 	println("TOTAL: ", time.Since(timeMin).Milliseconds(), "ms\n")
 
-	println("FINDORIC\n-------")
+	println("FINDORIGIN\n-------")
 	timeOriC := time.Now()
 
 	input = input[:len(input)-paddingSize]
 	window := getWindow(input, minIndex)
-	findFreqKLengthPatterns(window, 9)
+	findFreqKLengthPatterns(window, 9) //FIXME hardcoded
 
 	println("TOTAL: ", time.Since(timeOriC).Milliseconds(), "ms\n")
+
+	println("-------------\nTOTAL RUNTIME\n-------------")
+	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
+
 }
