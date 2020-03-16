@@ -23,7 +23,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
 )
 
 const NumThreads = 8
@@ -416,15 +415,16 @@ func createNeighbors(pattern string, neighbors *[]string) {
 }
 
 func main() {
-
-	var filename string
-	print("\nEnter FASTA Filename: ")
-	fmt.Scan(&filename)
-
+	
+	if len(os.Args) == 1 {
+		println("Wrong input, exitting")
+		println("USAGE: ./findDNAOrigin FILENAME")
+		os.Exit(1)
+	}
 	println("INPUT\n-----")
 	timeInput := time.Now()
 
-	input, paddingSize := getInput(filename)
+	input, paddingSize := getInput(os.Args[1])
 	data := processInput(input)
 
 	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
@@ -466,5 +466,4 @@ func main() {
 	for i := range candidates {
 		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
 	}
-
 }
