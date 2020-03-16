@@ -1,6 +1,6 @@
 /*
 *@Authors:   Jack Arnold and Devin Lim
-*@Algorithm: This program takes in a Achaean genome and processes it to find likely locations for the dnaA box/origin.
+*@Algorithm: This program takes in a Archaean genome in a FASTA format and processes it to find likely locations for the dnaA box/origin.
 *		     We do this by first cutting down on our search space by calculating the prefix skew (Total Cytosine so far
 *            minus Total Guanine so far) . This is done via a recursive, paralellized scan & reduction. There were no
 *            performance gains from this process. A parallel search of the prefix skew results was done to find the
@@ -23,15 +23,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 )
 
-const NumThreads = 2
+const NumThreads = 8
 const HalfNumThreads = NumThreads / 2
-const ParallelLevels = 2
-const Filename = "genome"
+const ParallelLevels = 3
 const WindowSize = 400
-const Letters = "ATGC"
 const KMerLength = 9
+
+const Letters = "ATGC"
 
 //Return type for the findOriginCandidates
 type Candidate struct {
@@ -411,10 +412,15 @@ func createNeighbors(pattern string, neighbors *[]string) {
 }
 
 func main() {
+
+	var filename string
+	print("\nEnter FASTA Filename: ")
+	fmt.Scan(&filename)
+
 	println("INPUT\n-----")
 	timeInput := time.Now()
 
-	input, paddingSize := getInput(Filename)
+	input, paddingSize := getInput(filename)
 	data := processInput(input)
 
 	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
