@@ -25,35 +25,43 @@ import (
 	"time"
 )
 
-const NumThreads = 1
-const ParallelLevels = 1
+const NumThreads = 2
+const HalfNumThreads = NumThreads / 2
+const ParallelLevels = 2
 const Filename = "genome"
 const WindowSize = 400
 const Letters = "ATGC"
 const KMerLength = 9
 
+//Return type for the findOriginCandidates
 type Candidate struct {
 	sequence string
 	count    int
 }
+
+//Type used to locate the location of least skew
 type MinSkew struct {
 	index int
 	value int
 }
 
+//Used to track counts of Cytosine and Guanine in the prefix skew scan/reduction
 type TallyType struct {
 	c int
 	g int
 }
 
+//Used to find left child of a node in our logical tree in scan/reduction
 func left(i int) int {
 	return i*2 + 1
 }
 
+//same as left but for right child
 func right(i int) int {
 	return left(i) + 1
 }
 
+//determine if a node is a leaf in our logical tree in scan/reduction
 func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
 }
@@ -120,6 +128,7 @@ func parseInput(id int, wg *sync.WaitGroup, input string, data []TallyType, size
 	}
 }
 
+//Used to get the search region surrounding the index of least skew in the genome
 func getWindow(input string, index int) string {
 	start := 0
 	end := len(input)
@@ -143,6 +152,7 @@ func findNextPowerTwo(input int) int {
 	return input
 }
 
+//Starts the recursive pair wise summation of Cytosine and Guanine in the genome
 func startSum(output []TallyType, size int) {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -150,6 +160,7 @@ func startSum(output []TallyType, size int) {
 	wg.Wait()
 }
 
+//Finds the pair wise summation of Cytosine and Guanine instances in the genome in a recursive parallel fashion
 func calcSum(i int, level int, wg *sync.WaitGroup, output []TallyType, size int) {
 	defer wg.Done()
 
@@ -169,6 +180,7 @@ func calcSum(i int, level int, wg *sync.WaitGroup, output []TallyType, size int)
 	}
 }
 
+//Helper function to calculate pairwise sum when past the ParallelLevel threshold
 func seqCalcSum(i int, level int, output []TallyType, size int) {
 	if !isLeaf(i, size) {
 		seqCalcSum(left(i), level+1, output, size)
@@ -178,6 +190,7 @@ func seqCalcSum(i int, level int, output []TallyType, size int) {
 	}
 }
 
+//Starts the calculation of prefix Skew
 func startSkew(input []TallyType, output []int, size int) {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -186,6 +199,7 @@ func startSkew(input []TallyType, output []int, size int) {
 	wg.Wait()
 }
 
+//Finds the prefix skew in a recursive parallel fashion
 func calcSkew(i int, sumPrior TallyType, level int, wg *sync.WaitGroup, input []TallyType, output []int, size int) {
 	defer wg.Done()
 	if isLeaf(i, size) {
@@ -204,6 +218,7 @@ func calcSkew(i int, sumPrior TallyType, level int, wg *sync.WaitGroup, input []
 	}
 }
 
+//Helper function to calculate prefix skew when past the ParallelLevel threshold
 func seqCalcSkew(i int, sumPrior TallyType, level int, input []TallyType, output []int, size int) {
 	if isLeaf(i, size) {
 		output[i-size+1] = (sumPrior.g + input[i].g) - (sumPrior.c + input[i].c)
@@ -214,6 +229,7 @@ func seqCalcSkew(i int, sumPrior TallyType, level int, input []TallyType, output
 	}
 }
 
+//Finds the lowest skew value in a region of the prefix skew map
 func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, mS *MinSkew) {
 	defer wg.Done()
 	min := math.MaxInt32
@@ -228,6 +244,7 @@ func lowestSkewPosition(skewMap []int, wg *sync.WaitGroup, start int, end int, m
 	mS.value = min
 }
 
+//Finds the index for the lowest prefix skew value in the genome
 func findMin(outputArr []int, size int, paddingSize int) int {
 	var wg sync.WaitGroup
 	outputArr = outputArr[:size-paddingSize]
@@ -253,6 +270,7 @@ func findMin(outputArr []int, size int, paddingSize int) int {
 	return minIndex.index
 }
 
+//Takes the reverse compliment of a k-Mer pattern
 func reverse(pattern string) string {
 	var reversed strings.Builder
 	length := len(pattern) - 1
@@ -271,6 +289,7 @@ func reverse(pattern string) string {
 	return reversed.String()
 }
 
+//Counts the instances of a specific k-Mer neighbor in the window
 func searchWindowSpecific(window string, patterns []string, count *int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -279,18 +298,19 @@ func searchWindowSpecific(window string, patterns []string, count *int, wg *sync
 	}
 }
 
+//Counts the instances of a k-Mer in the window
 func searchWindow(window string, pattern string, revPattern string) int {
 	neighbors := make([]string, 0)
 	createNeighbors(pattern, &neighbors)
 	count := 0
 	var wg sync.WaitGroup
-	result := make([]int, NumThreads*2)
+	result := make([]int, HalfNumThreads*2)
 	revNeighbors := make([]string, 0)
 	createNeighbors(revPattern, &revNeighbors)
 
-	for i := 0; i < NumThreads; i++ {
-		start := i * len(neighbors) / NumThreads
-		end := (i + 1) * len(neighbors) / NumThreads
+	for i := 0; i < HalfNumThreads; i++ {
+		start := i * len(neighbors) / HalfNumThreads
+		end := (i + 1) * len(neighbors) / HalfNumThreads
 		if end > len(neighbors) {
 			end = len(neighbors)
 		}
@@ -307,6 +327,7 @@ func searchWindow(window string, pattern string, revPattern string) int {
 	return count
 }
 
+//Gets a "halfway" for the k-Mer search. Because we must search for the reverse k-Mer
 func getLastPattern(length int) string {
 	var lastPattern strings.Builder
 	halfway := int(math.Floor(float64(length) / float64(2)))
@@ -326,7 +347,6 @@ func findOriginCandidates(window string, k int) []Candidate {
 	pattern := getInitialPattern(9)
 	countFreq := make(map[string]int, 0)
 	for pattern != lastPattern {
-		//DON"T SEARCH FOR REVERSE LATER
 		reversePattern := reverse(pattern)
 		count := searchWindow(window, pattern, reversePattern)
 		countFreq[pattern] = count
