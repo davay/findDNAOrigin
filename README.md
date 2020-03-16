@@ -1,8 +1,7 @@
 # Description
 This program takes in a Archaean genome in a FASTA format and processes it to find likely locations for the dnaA box/origin.
 
-We do this by first cutting down on our search space by calculating the prefix skew (Total Cytosine so far minus Total Guanine so far). 
-This is done via a recursive, paralellized scan & reduction. There were no performance gains during testing, likely due to the small data size of E. Coli's genome.
+We do this by first cutting down on our search space by calculating the prefix skew (Total Cytosine so far minus Total Guanine so far). This is done via a recursive, paralellized scan & reduction.
 
 A parallel search of the prefix skew results was done to find the minimum skew location. It is known that the area around the minimum skew location (window) contains the
 origin of replication (OriC). We then count the instances of all combinations DNA polymers of K size (k-Mers). 
