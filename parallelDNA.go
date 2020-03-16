@@ -1,6 +1,6 @@
 /*
 *@Authors:   Jack Arnold and Devin Lim
-*@Algorithm: This program takes in a archaean genome and processes it to find likely locations for the dnaA box/origin.
+*@Algorithm: This program takes in a Achaean genome and processes it to find likely locations for the dnaA box/origin.
 *		     We do this by first cutting down on our search space by calculating the prefix skew (Total Cytosine so far
 *            minus Total Guanine so far) . This is done via a recursive, paralellized scan & reduction. There were no
 *            performance gains from this process. A parallel search of the prefix skew results was done to find the
@@ -8,7 +8,7 @@
 *            origin of replication (OriC). We then count the instances of all combinations DNA polymers of K size
 *            (k-Mers). The count for a particular k-Mer includes other k-Mers where one character in the string is
 *            another nucleotide (hamming distance of 1). To calculate the count for a particular k-Mer we must count for
-*            all k-Mers with a hamming distance of 1 (neighbors). This presents an oppurtunity for parallelization which
+*            all k-Mers with a hamming distance of 1 (neighbors). This presents an opportunity for parallelization which
 *            we took advantage of. A different goroutine is used to count a portion of the neighbors. The most
 *            frequently occurring k-Mers are likely candidates for the OriC sequence in the the input genome.
  */
@@ -30,8 +30,9 @@ const ParallelLevels = 1
 const Filename = "genome"
 const WindowSize = 400
 const Letters = "ATGC"
+const KMerLength = 9
 
-type CandidateString struct {
+type Candidate struct {
 	sequence string
 	count    int
 }
@@ -43,10 +44,6 @@ type MinSkew struct {
 type TallyType struct {
 	c int
 	g int
-}
-
-func parent(i int) int {
-	return (i - 1) / 2
 }
 
 func left(i int) int {
@@ -61,13 +58,6 @@ func isLeaf(i int, size int) bool {
 	return right(i) >= size*2-1
 }
 
-func printData(input []TallyType, size int) {
-	for i := 0; i < size; i++ {
-		print(i, ": ")
-		println("[", input[i].c, ",", input[i].g, "]")
-	}
-}
-
 func getInput(filename string) (string, int) {
 	start := time.Now()
 	file, err := os.Open(filename)
@@ -78,6 +68,7 @@ func getInput(filename string) (string, int) {
 	defer file.Close()
 	s := bufio.NewScanner(file)
 	var inputBuilder strings.Builder
+	s.Scan()
 	for s.Scan() {
 		inputBuilder.WriteString(s.Text())
 	}
@@ -280,19 +271,6 @@ func reverse(pattern string) string {
 	return reversed.String()
 }
 
-func getAllKLength(set string, prefix string, k int, combos *[]string) {
-	if k == 0 {
-		*combos = append(*combos, prefix)
-		return
-	}
-	for i := range set {
-		var combo strings.Builder
-		combo.WriteString(prefix)
-		combo.WriteByte(set[i])
-		getAllKLength(set, combo.String(), k-1, combos)
-	}
-}
-
 func searchWindowSpecific(window string, patterns []string, count *int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -343,7 +321,7 @@ func getLastPattern(length int) string {
 	return lastPattern.String()
 }
 
-func findFreqKLengthPatterns(window string, k int) {
+func findOriginCandidates(window string, k int) []Candidate {
 	lastPattern := getLastPattern(k)
 	pattern := getInitialPattern(9)
 	countFreq := make(map[string]int, 0)
@@ -356,20 +334,17 @@ func findFreqKLengthPatterns(window string, k int) {
 		pattern = nextPattern(pattern)
 	}
 	max := 0
-	candidates := make([]CandidateString, 0)
+	candidates := make([]Candidate, 0)
 	for k, v := range countFreq {
 		if v > max {
 			candidates = nil
 			max = v
-			candidates = append(candidates, CandidateString{k, v})
+			candidates = append(candidates, Candidate{k, v})
 		} else if v == max {
-			candidates = append(candidates, CandidateString{k, v})
+			candidates = append(candidates, Candidate{k, v})
 		}
 	}
-	//FIXME move print statement
-	for i := range candidates {
-		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
-	}
+	return candidates
 }
 
 func getInitialPattern(length int) string {
@@ -452,11 +427,14 @@ func main() {
 
 	input = input[:len(input)-paddingSize]
 	window := getWindow(input, minIndex)
-	findFreqKLengthPatterns(window, 9) //FIXME hardcoded
-
+	candidates := findOriginCandidates(window, KMerLength)
 	println("TOTAL: ", time.Since(timeOriC).Milliseconds(), "ms\n")
 
 	println("-------------\nTOTAL RUNTIME\n-------------")
 	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
+
+	for i := range candidates {
+		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
+	}
 
 }
