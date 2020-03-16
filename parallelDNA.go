@@ -342,6 +342,7 @@ func getLastPattern(length int) string {
 	return lastPattern.String()
 }
 
+//Finds most frequent K-Mers with reverse compliment and mismatches of 1
 func findOriginCandidates(window string, k int) []Candidate {
 	lastPattern := getLastPattern(k)
 	pattern := getInitialPattern(9)
@@ -367,6 +368,7 @@ func findOriginCandidates(window string, k int) []Candidate {
 	return candidates
 }
 
+//Returns a string of A's of length K
 func getInitialPattern(length int) string {
 	var firstPattern strings.Builder
 	for i := 0; i < length; i++ {
@@ -375,6 +377,7 @@ func getInitialPattern(length int) string {
 	return firstPattern.String()
 }
 
+//Returns the next k-Mer to check. AA->TA->GA->CA->AT->AG->AC->TT->TG->TC .... CC
 func nextPattern(pattern string) string {
 	var nextP strings.Builder
 
@@ -394,6 +397,7 @@ func nextPattern(pattern string) string {
 	return nextP.String()
 }
 
+//Gets all neighbors of a particular k-Mer
 func createNeighbors(pattern string, neighbors *[]string) {
 	for i := range pattern {
 		for j := range Letters {
