@@ -14,6 +14,8 @@
 * This presents an opportunity for parallelization which we took advantage of. A different goroutine is used to count a portion of the neighbors. 
 * 
 * The most frequently occurring k-Mers are likely candidates for the OriC sequence in the the input genome.
+*
+* Given an input of size 16 million characters, we were able to find a 10% performance improvement going from 1 thread and 1 parallelization level (fork level) to 8 threads and 3 levels.
 */
 
 package main
