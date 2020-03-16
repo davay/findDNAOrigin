@@ -70,7 +70,7 @@ func getInput(filename string) (string, int) {
 	start := time.Now()
 	file, err := os.Open(filename)
 	if err != nil {
-		println("Can't find ", filename)
+		println("Can't find", filename, "-- exitting")
 		os.Exit(1)
 	}
 	defer file.Close()
