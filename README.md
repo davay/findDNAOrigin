@@ -29,6 +29,7 @@ go build
 
 ### Run
 
+```GCF_000005845.2_ASM584v2_genomic.fna``` file included is E. Coli's genome
 ```sh
 ./findDNAOrigin FILENAME
 ```
