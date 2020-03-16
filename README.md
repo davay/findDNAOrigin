@@ -13,7 +13,7 @@ The most frequently occurring k-Mers are likely candidates for the OriC sequence
 
 Given an input of size 16 million characters, we were able to find a 10% performance improvement going from 1 thread and 1 parallelization level (fork level) to 8 threads and 3 levels.
 
-Proven with E. Coli genome, giving a result of ```TTATCCACA```, as shown [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3783049/)
+Proven with E. Coli genome, giving a result of ```TTATCCACA```, as shown [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3783049/#s1title)
 ## Howto 
 
 ```sh
