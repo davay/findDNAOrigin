@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"math"
 	"os"
+	_ "regexp"
 	"strings"
 	"sync"
 )
@@ -11,7 +12,7 @@ import (
 const NumThreads = 8
 const ParallelLevels = 4
 const Filename = "genome"
-const WindowSize = 400
+const WindowSize = 500
 const Letters = "ATGC"
 
 type MinSkew struct {
@@ -229,6 +230,7 @@ func fetchMostFrequentPattern(genome string, k int, mismatches *int) []freqPatte
 	for pattern != lastPattern {
 		pattern = nextPattern(pattern)
 		reversePattern = reverse(pattern)
+
 		occurredCount := fetchApproximateMatchingCount(pattern, genome, mismatches)
 		occurredCount += fetchApproximateMatchingCount(reversePattern, genome, mismatches)
 		if occurredCount == 2 {
@@ -330,18 +332,152 @@ func reverse(pattern string) string {
 
 func main() {
 	input, paddingSize := getInput(Filename)
-	data := processInput(input)
-	size := len(input)
-	outputArr := make([]int, size)
-	startSum(data, size)
-	startSkew(data, outputArr, size)
-	minIndex := findMin(outputArr, size, paddingSize)
-	println(minIndex)
+	//data := processInput(input)
+	//size := len(input)
+	//outputArr := make([]int, size)
+	//startSum(data, size)
+	//startSkew(data, outputArr, size)
+	//minIndex := findMin(outputArr, size, paddingSize)
+	//println(minIndex)
 	input = input[:len(input)-paddingSize]
-	window := getWindow(input, minIndex)
-	mismatches := 1
-	patterns := fetchMostFrequentPattern(window, 9, &mismatches)
-	for i := range patterns {
-		println(patterns[i].pattern, ": ", patterns[i].count)
+	//window := getWindow(input, minIndex)
+	window := getWindow(input, 3925596)
+	findFreqKLengthPatterns(window, 9)
+
+	//mismatches := 1
+	//patterns := fetchMostFrequentPattern(window, 9, &mismatches)
+	//for i := range patterns {
+	//	println(patterns[i].pattern, ": ", patterns[i].count)
+	//}
+}
+
+func getAllKLength(set string, prefix string, k int, combos *[]string) {
+
+	if k == 0 {
+		*combos = append(*combos, prefix)
+		//println(combos[0], combos[1])
+		return
 	}
+	for i := range set {
+		var combo strings.Builder
+		combo.WriteString(prefix)
+		combo.WriteByte(set[i])
+		getAllKLength(set, combo.String(), k-1, combos)
+	}
+}
+
+func searchWindow(window string, pattern string, revPattern string) int {
+	mismatches := make([]string, 0)
+	//mismatches = append(mismatches, pattern)
+	createMismatches(pattern, &mismatches)
+	count := 0
+	for i := range mismatches {
+		x := strings.Count(window, mismatches[i])
+
+		count = count + x
+	}
+	revMismatches := make([]string, 0)
+	createMismatches(revPattern, &revMismatches)
+	for i := range revMismatches {
+		x := strings.Count(window, revMismatches[i])
+		count = count + x
+	}
+	//println("Pattern: ", pattern,"Count: ", count)
+	return count
+}
+
+func findFreqKLengthPatterns(window string, k int) {
+	combos := make([]string, 0)
+	getAllKLength("ATGC", "", k, &combos)
+
+	countFreq := make(map[string]int)
+
+	for i := range combos {
+		countFreq[combos[i]] = 0
+	}
+
+	//Dictionary initialized with all counts @ 0 ...
+	for i := range countFreq {
+		if countFreq[i] == 0 {
+
+			//DON"T SEARCH FOR REVERSE LATER
+			reversePattern := reverse(i)
+			count := searchWindow(window, i, reversePattern)
+			countFreq[i] = count
+			countFreq[reversePattern] = count
+		}
+	}
+
+	max := 0
+
+	candidates := make([]candidateString, 0)
+
+	for k, v := range countFreq {
+		if v > max {
+			candidates = nil
+			max = v
+			candidates = append(candidates, candidateString{k, v})
+		} else if v == max {
+			candidates = append(candidates, candidateString{k, v})
+		}
+
+	}
+	for i := range candidates {
+		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
+	}
+
+}
+
+type candidateString struct {
+	sequence string
+	count    int
+}
+
+func createMismatches(pattern string, mismatches *[]string) {
+	for i := range pattern {
+		var mm strings.Builder
+		if i == 0 {
+			mm.WriteString("A" + pattern[1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString("T" + pattern[1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString("G" + pattern[1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString("C" + pattern[1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+		}
+		if i == len(pattern)-1 {
+			mm.WriteString(pattern[0:i] + "A")
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "T")
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "G")
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "C")
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+		}
+		if i != 0 && i != len(pattern)-1 {
+			mm.WriteString(pattern[0:i] + "A" + pattern[i+1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "T" + pattern[i+1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "G" + pattern[i+1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+			mm.WriteString(pattern[0:i] + "C" + pattern[i+1:])
+			*mismatches = append(*mismatches, mm.String())
+			mm.Reset()
+		}
+	}
+
 }
