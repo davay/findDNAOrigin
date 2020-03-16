@@ -464,6 +464,6 @@ func main() {
 	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
 
 	for i := range candidates {
-		println("Pattern: ", candidates[i].sequence, " Count: ", candidates[i].count)
+		println("Pattern: ", candidates[i].sequence)
 	}
 }
