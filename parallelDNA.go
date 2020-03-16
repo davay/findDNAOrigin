@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-const NumThreads = 8
-const ParallelLevels = 4
+const NumThreads = 1
+const ParallelLevels = 1
 const Filename = "genome"
 const WindowSize = 500
 const Letters = "ATGC"
@@ -62,13 +62,13 @@ func getInput(filename string) (string, int) {
 	}
 	defer file.Close()
 	s := bufio.NewScanner(file)
-	var input string
+	var inputBuilder strings.Builder
 	for s.Scan() {
-		input += s.Text()
+		inputBuilder.WriteString(s.Text())
 	}
-	elapsed := time.Now().Sub(start)
-	println("getInput took: ", elapsed.Milliseconds())
-	return fixInput(input)
+	elapsed := time.Since(start)
+	println("getInput took: ", elapsed.Milliseconds(), "ms")
+	return fixInput(inputBuilder.String())
 }
 
 func processInput(input string) []TallyType {
@@ -81,8 +81,8 @@ func processInput(input string) []TallyType {
 		go parseInput(i, &wg, input, data, size/NumThreads)
 	}
 	wg.Wait()
-	elapsed := time.Now().Sub(start)
-	println("processInput took: ", elapsed.Milliseconds())
+	elapsed := time.Since(start)
+	println("processInput took: ", elapsed.Milliseconds(), "ms")
 	return data
 }
 
@@ -96,7 +96,7 @@ func fixInput(input string) (string, int) {
 		padding.WriteString("X")
 	}
 	elapsed := time.Since(start)
-	println("fixInput took: ", elapsed.Milliseconds())
+	println("fixInput took: ", elapsed.Milliseconds(), "ms")
 	return padding.String(), paddingSize
 }
 
@@ -347,15 +347,43 @@ func createNeighbors(pattern string, neighbors *[]string) {
 }
 
 func main() {
+	println("INPUT\n-----")
+	timeInput := time.Now()
+
 	input, paddingSize := getInput(Filename)
 	data := processInput(input)
+
+	println("TOTAL: ", time.Since(timeInput).Milliseconds(), "ms\n")
+
+	println("SUM\n---")
+	timeSum := time.Now()
+
 	size := len(input)
-	outputArr := make([]int, size)
 	startSum(data, size)
+
+	println("TOTAL: ", time.Since(timeSum).Milliseconds(), "ms\n")
+
+	println("SKEW\n----")
+	timeSkew := time.Now()
+
+	outputArr := make([]int, size)
 	startSkew(data, outputArr, size)
+
+	println("TOTAL: ", time.Since(timeSkew).Milliseconds(), "ms\n")
+
+	println("FINDMIN\n-------")
+	timeMin := time.Now()
+
 	minIndex := findMin(outputArr, size, paddingSize)
-	println(minIndex)
+
+	println("TOTAL: ", time.Since(timeMin).Milliseconds(), "ms\n")
+
+	println("FINDORIC\n-------")
+	timeOriC := time.Now()
+
 	input = input[:len(input)-paddingSize]
 	window := getWindow(input, minIndex)
 	findFreqKLengthPatterns(window, 9)
+
+	println("TOTAL: ", time.Since(timeOriC).Milliseconds(), "ms\n")
 }
