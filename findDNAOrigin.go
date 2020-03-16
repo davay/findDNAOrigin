@@ -28,8 +28,9 @@ import (
 	"time"
 )
 
-const NumThreads = 8
-const ParallelLevels = 3
+const NumThreads = 1
+const HalfNumThreads = NumThreads / 2
+const ParallelLevels = 1
 const WindowSize = 400
 const KMerLength = 9
 
@@ -302,17 +303,21 @@ func searchWindowSpecific(window string, patterns []string, count *int, wg *sync
 
 //Counts the instances of a k-Mer in the window
 func searchWindow(window string, pattern string, revPattern string) int {
+	halfNumThreadsTemp := HalfNumThreads
+	if (halfNumThreadsTemp == 0) {
+		halfNumThreadsTemp = 1
+	}
 	neighbors := make([]string, 0)
 	createNeighbors(pattern, &neighbors)
 	count := 0
 	var wg sync.WaitGroup
-	result := make([]int, NumThreads)
+	result := make([]int, halfNumThreadsTemp*2)
 	revNeighbors := make([]string, 0)
 	createNeighbors(revPattern, &revNeighbors)
 
-	for i := 0; i < int(math.Ceil(NumThreads/2)); i++ {
-		start := i * len(neighbors) / int(math.Ceil(NumThreads/2))
-		end := (i + 1) * len(neighbors) /  int(math.Ceil(NumThreads/2))
+	for i := 0; i < halfNumThreadsTemp; i++ {
+		start := i * len(neighbors) / halfNumThreadsTemp
+		end := (i + 1) * len(neighbors) / halfNumThreadsTemp
 		if end > len(neighbors) {
 			end = len(neighbors)
 		}
